@@ -1,102 +1,165 @@
-# 🔬 kvasir-pathfinder
+# kvasir-pathfinder — Gastrointestinal Disease Detection via Transfer Learning
 
-> ⚠️ Work in Progress — actively improving.
+## Project Overview
 
-**🔗 Live Notebook on Kaggle:** [kvasir-pathfinder](https://www.kaggle.com/code/inexxcsgo/kvasir-pathfinder)
-
----
-
-Endoscopy exams generate thousands of images. Doctors have to go through all of them manually — and things get missed. This project is my attempt to build something that helps with that: a model that looks at gastrointestinal images and classifies what it sees, automatically.
-
-I built this after reading the published work of Prof. Pekka Toivanen and Dr. Keijo Haataja from UEF on WCE and GI image analysis. Their research made it clear how much room there is for deep learning to make a real difference in this space, and I wanted to try building a version of that pipeline myself.
-
----
-
-## Results
-
-| Metric | Score |
-|--------|-------|
-| Test Accuracy | **89%** |
-| Macro ROC-AUC (OvR) | **0.9668** |
-| Weighted F1 | **0.88** |
-
-Standout class results:
-- `retroflex-stomach` — Precision 1.00, Recall 1.00
-- `cecum` — AUC 1.000
-- `polyps` — AUC 0.996, Recall 0.99
-- `pylorus` — AUC 1.000
-
-Weaker classes (`barretts`, `ulcerative-colitis-grade-0-1`) had very few samples — class imbalance is the main issue, not the model architecture.
+Endoscopy exams generate thousands of images, and clinicians must review them manually, which is time-consuming and error-prone.  
+This project investigates whether a deep learning model can automatically classify gastrointestinal (GI) endoscopy images and highlight clinically relevant findings, using the HyperKvasir dataset.
 
 ---
 
 ## Why HyperKvasir?
 
-HyperKvasir is one of the largest publicly available GI endoscopy datasets — 10,662 images across 23 classes, ranging from normal findings to polyps and other abnormalities. It's what the UEF research group works with, so it made sense to start here.
+HyperKvasir is one of the largest publicly available GI endoscopy datasets:
+
+- 10,662 images  
+- 23 classes (normal findings, polyps, inflammatory conditions, etc.)
+
+Because it is widely used by leading research groups in GI and wireless capsule endoscopy (WCE), it provides a solid and comparable baseline for this work.
+
+You can view and run the full pipeline here:  
+**Live Kaggle Notebook:** [kvasir-pathfinder](https://www.kaggle.com/code/inexxcsgo/kvasir-pathfinder)
 
 ---
 
-## What the Model Does
+## Connection to UEF’s Research
 
-The backbone is EfficientNet-B3, pretrained on ImageNet and fine-tuned for this task. Lower layers are frozen, only the top blocks and classification head are trained.
+This project is inspired by the WCE and GI image analysis research led by Prof. Pekka Toivanen, Dr. Keijo Haataja, and Dr. Tsedeke Temesgen Habe at the University of Eastern Finland (UEF).
 
-**Training setup:**
-- Optimizer: AdamW
-- Scheduler: CosineAnnealingLR
-- Loss: CrossEntropyLoss + Label Smoothing (0.1)
-- Early Stopping: patience 6
-- Image size: 300×300 | Batch size: 32
+Their work focuses on real-time, deployment-oriented pipelines for detecting and localizing findings in WCE videos (for example, RT-DETR–based object detection).  
+My model is a frame-level classifier on the HyperKvasir dataset and is designed as an initial step toward such pipelines, with the following objectives:
 
-Data split: 70% train / 15% val / 15% test (stratified). Classes with fewer than 10 samples removed before training.
+- Use a lightweight backbone (EfficientNet-B3) for frame-level GI classification.  
+- Address class imbalance and evaluate with clinically meaningful metrics (macro ROC-AUC, F1-score, confusion matrix).  
+- Apply Grad-CAM to verify that the model relies on relevant anatomical regions rather than artifacts.
 
----
-
-## What Gets Generated
-
-**Data exploration:**
-- `class_distribution.png` — bar chart + pie chart of images per class
-- `sample_images.png` — 2×4 grid of example endoscopy images per class
-
-**Training:**
-- `training_curves.png` — loss and accuracy across epochs for train and val
-
-**Evaluation:**
-- `confusion_matrix.png` — full prediction heatmap on test set
-- `roc_curves.png` — ROC-AUC curves for the top 6 classes
-
-**Explainability:**
-- `gradcam.png` — Grad-CAM heatmaps from the last conv block, showing which pixels the model focused on. For medical AI, this matters — accuracy alone isn't enough if the model is looking at the wrong parts of the image.
+In a future extension, this classifier could serve as a pre-filter in a WCE pipeline: first flagging potentially abnormal frames, then passing them to more computationally expensive detection models for lesion localization.
 
 ---
 
-## Running It
+## Model Architecture and Training
 
-Runs on Kaggle or Google Colab with a T4 GPU.
+Backbone: EfficientNet-B3 (pretrained on ImageNet, fine-tuned on HyperKvasir)
 
-**On Kaggle:**
-1. Add HyperKvasir via **Add Data**
-2. Set accelerator to **GPU T4 x2**
-3. Run All
+- Lower layers: frozen  
+- Upper blocks and a custom classification head: trainable
+
+Training setup:
+
+- Optimizer: AdamW  
+- Scheduler: CosineAnnealingLR  
+- Loss: CrossEntropyLoss with label smoothing (0.1)  
+- Early stopping: patience of 6 epochs  
+- Image size: 224 × 224  
+- Batch size: 32  
+
+Data split (stratified):
+
+- 75% train  
+- 12.5% validation  
+- 12.5% test  
+
+Classes with fewer than 10 samples were excluded prior to training to avoid extreme imbalance.
+
+---
+
+## Results
+
+| Metric              | Score   |
+|---------------------|---------|
+| Test accuracy       | 89%     |
+| Macro ROC-AUC (OvR) | 0.9668  |
+| Weighted F1-score   | 0.88    |
+
+Selected class-level performance:
+
+- `retroflex-stomach`: precision 1.00, recall 1.00  
+- `cecum`: AUC 1.000  
+- `polyps`: AUC 0.996, recall 0.99  
+- `pylorus`: AUC 1.000  
+
+Weaker classes such as Barrett’s esophagus and ulcerative-colitis-grade-0-1 have very few samples; here the main limitation is class imbalance rather than the model architecture.
+
+---
+
+## Class Imbalance and Clinical Risk
+
+The poorest performing classes are those with very few samples. This is not only a statistical issue but also a clinical one:
+
+- Under-represented classes tend to have lower recall, increasing the risk of false negatives.  
+- In a clinical setting, false negatives are often more problematic than false positives, especially for pre-cancerous or inflammatory conditions.
+
+Current handling:
+
+- Excluding classes with fewer than 10 samples  
+- Using stratified train/validation/test splits  
+
+Planned next steps:
+
+- Introduce class-weighted loss functions for minority classes.  
+- Explore data-level augmentation for rare classes (oversampling, Mixup/CutMix).  
+- Report per-class recall and false negative counts for clinically important categories (such as polyps and Barrett’s esophagus), rather than relying only on global metrics.
+
+The objective is not only high overall accuracy but also error patterns that are clinically interpretable and acceptable.
+
+---
+
+## Explainability (XAI) and Generated Artifacts
+
+High accuracy alone is not sufficient in medical AI; the model must focus on clinically relevant structures.
+
+The pipeline produces the following artifacts:
+
+- `class_distribution.png` – distribution of images per class  
+- `training_curves.png` – training and validation loss and accuracy over epochs  
+- `confusion_matrix.png` – test-set prediction heatmap  
+- `roc_curves.png` – ROC-AUC curves for the top six classes  
+- `gradcam.png` – Grad-CAM heatmaps from the final convolutional block  
+
+Qualitative analysis:
+
+- Polyps: verify that Grad-CAM highlights the polyp surface and surrounding mucosa, not specular highlights or tools.  
+- Normal findings: check that attention is more diffuse and does not consistently focus on borders or artifacts.  
+- Rare conditions: inspect whether the model is capturing meaningful patterns or simply overfitting to noise.
+
+This qualitative inspection step is important before considering any model as clinically trustworthy.
+
+---
+
+## Running the Code
+
+Kaggle:
+
+- Open the notebook:  
+  https://www.kaggle.com/code/inexxcsgo/kvasir-pathfinder  
+- Attach the HyperKvasir dataset.  
+- Enable a T4 GPU.  
+- Run all cells.
+
+Local or Google Colab:
 
 ```bash
-pip install timm grad-cam
+# Install dependencies
+pip install timm grad-cam scikit-learn
+
+# Ensure the HyperKvasir dataset is available,
+# then run the notebook cells sequentially.
 ```
 
 ---
 
 ## References
 
-- Habe, Haataja, Toivanen. RT-DETR for Wireless Capsule Endoscopy. *Frontiers in AI*, 2025.
-- Habe, Haataja, Toivanen. Benchmarking Object Detection in WCE. *IEEE Access*, 2024.
-- Habe, Haataja, Toivanen. Deep Learning Review for GI Classification. *F1000Research*, 2024.
-- [HyperKvasir Dataset](https://www.kaggle.com/datasets/melidsa/hyperkvasir)
-- [EfficientNet — Tan & Le, ICML 2019](https://arxiv.org/abs/1905.11946)
-- [Grad-CAM — Selvaraju et al., ICCV 2017](https://arxiv.org/abs/1610.02391)
+- Habe, Haataja, Toivanen. RT-DETR for Wireless Capsule Endoscopy. Frontiers in AI, 2025.  
+- Habe, Haataja, Toivanen. Benchmarking Object Detection in WCE. IEEE Access, 2024.  
+- Habe, Haataja, Toivanen. Deep Learning Review for GI Classification. F1000Research, 2024.  
+- HyperKvasir dataset.  
+- Tan and Le. EfficientNet. ICML, 2019.  
+- Selvaraju et al. Grad-CAM. ICCV, 2017.  
 
 ---
 
-## About
+## Author
 
-**Muhammed Inanc**
-Computer Programming, Inonu University — Turkey
-Founder, [INEXX Interactive](https://inexxinteractive.com)
+Muhammed Inanc  
+Student / Researcher, Inonu University — Turkey  
+Founder, INEXX Interactive 
