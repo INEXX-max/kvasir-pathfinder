@@ -23,7 +23,7 @@ You can view and run the full pipeline here:
 
 ## Connection to UEF’s Research
 
-This project is inspired by the WCE and GI image analysis research led by Prof. Pekka Toivanen, Dr. Keijo Haataja, and Dr. Tsedeke Temesgen Habe at the University of Eastern Finland (UEF).
+This project is inspired by the WCE and GI image analysis research led by Prof. Pekka Toivanen, Dr. Keijo Haataja and Dr. Tsedeke Temesgen Habe at the University of Eastern Finland (UEF).
 
 Their work focuses on real-time, deployment-oriented pipelines for detecting and localizing findings in WCE videos (for example, RT-DETR–based object detection).  
 My model is a frame-level classifier on the HyperKvasir dataset and is designed as an initial step toward such pipelines, with the following objectives:
@@ -41,7 +41,7 @@ In a future extension, this classifier could serve as a pre-filter in a WCE pipe
 Backbone: EfficientNet-B3 (pretrained on ImageNet, fine-tuned on HyperKvasir)
 
 - Lower layers: frozen  
-- Upper blocks and a custom classification head: trainable
+- Upper blocks and a custom classification head: trainable  
 
 Training setup:
 
@@ -77,7 +77,7 @@ Selected class-level performance:
 - `polyps`: AUC 0.996, recall 0.99  
 - `pylorus`: AUC 1.000  
 
-Weaker classes such as Barrett’s esophagus and ulcerative-colitis-grade-0-1 have very few samples; here the main limitation is class imbalance rather than the model architecture.
+Weaker classes such as Barrett’s esophagus and ulcerative-colitis-grade-0-1 have very few samples; in these cases, the main limitation is class imbalance rather than the model architecture.
 
 ---
 
@@ -162,4 +162,4 @@ pip install timm grad-cam scikit-learn
 
 Muhammed Inanc  
 Student / Researcher, Inonu University — Turkey  
-Founder, INEXX Interactive 
+Founder, INEXX Interactive
